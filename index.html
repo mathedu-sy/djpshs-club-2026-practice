@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 대전생활과학고 동아리 신청(연습용)</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; background-color: #f0f2f5; color: #333; max-width: 500px; margin: 0 auto; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        h2 { text-align: center; color: #004792; margin-top: 0; margin-bottom: 10px; }
+        .sub-title { text-align: center; color: #666; font-size: 0.9rem; margin-bottom: 20px; display: block; line-height: 1.4; }
+        label { display: block; margin-bottom: 8px; font-size: 0.95rem; color: #555; }
+        input { width: 100%; padding: 12px; margin-bottom: 15px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 1rem; transition: 0.3s; }
+        input:focus { border-color: #004792; outline: none; }
+        button { border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button:active { opacity: 0.8; }
+        button:disabled { background: #ccc !important; cursor: not-allowed; }
+        .status-box { background: #e7f0ff; padding: 15px; border-radius: 10px; border: 1px solid #b3d1ff; margin-bottom: 20px; text-align: center; }
+        .cancel-btn { background: #dc3545; color:white; padding: 8px 15px; font-size: 0.9rem; margin-top: 10px; border-radius: 4px; }
+        .tab-container { display: flex; gap: 5px; margin-bottom: 15px; background: #eee; padding: 5px; border-radius: 10px; }
+        .tab-btn { flex: 1; padding: 10px; background: none; color: #666; border-radius: 8px; transition: 0.3s; }
+        .tab-btn.active { background: #004792; color: white; }
+        .list-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 2px solid #004792; margin-top: 10px; }
+        .list-label { flex: 1; font-size: 1.05rem; font-weight: bold; color: #004792; }
+        .mini-refresh-btn { background: #004792; color: white; padding: 6px 0; width: 70px; border-radius: 4px; font-size: 0.8rem; text-align: center; }
+        .club-item { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding: 15px 0; }
+        .club-info { flex: 1; }
+        .club-name { font-size: 1.05rem; font-weight: bold; display: block; margin-bottom: 4px; }
+        .club-details { font-size: 0.85rem; color: #777; margin-bottom: 4px; line-height: 1.4; }
+        .club-count { font-size: 0.9rem; color: #666; font-weight: bold; }
+        .full { color: #dc3545; font-weight: bold; }
+        .apply-btn { width: 85px; padding: 12px 0; background: #004792; color: white; font-size: 0.9rem; border-radius: 6px; margin-left: 10px; }
+        #loading-overlay { display: none; text-align: center; color: #004792; font-weight: bold; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:1000; padding-top:60%; }
+        .timer-info { font-size: 0.85rem; color: #d63384; text-align: center; margin-bottom: 15px; font-weight: bold; cursor: pointer; background: #fff0f6; padding: 8px; border-radius: 6px; }
+        .hidden { display: none; }
+        .grade-badge { background: #004792; color: white; padding: 2px 8px; border-radius: 20px; font-size: 0.8rem; vertical-align: middle; margin-right: 5px; }
+    </style>
+</head>
+<body>
+
+    <div id="login-section" class="card">
+        <h2><span class="grade-badge">2026학년도</span> 동아리 신청(연습용)</h2>
+        <span class="sub-title">본인의 학번과 이름을 정확히 입력해 주세요.</span>
+        <div id="time-notice" class="timer-info" onclick="devMode()">서버 시간 확인 중...</div>
+        <div>
+            <label><strong>학번</strong> (예: 1101)</label>
+            <input type="text" id="studentId" placeholder="4자리 학번 입력" inputmode="numeric" oninput="vId(this)">
+        </div>
+        <div>
+            <label><strong>이름</strong> (예: 홍길동)</label>
+            <input type="text" id="studentName" placeholder="이름 입력" oninput="vName(this)">
+        </div>
+        <button id="login-btn" onclick="showClubs()" style="width:100%; padding:14px; background:#004792; color:white; font-size:1.1rem;">동아리 목록 보기</button>
+    </div>
+
+    <div id="club-section" class="card hidden">
+        <h2>2026학년도 동아리 선택(연습용)</h2>
+        <div id="my-status" class="status-box hidden"></div>
+        <div class="tab-container">
+            <button id="tab-general" class="tab-btn active" onclick="switchTab('general')">일반동아리</button>
+            <button id="tab-major" class="tab-btn" onclick="switchTab('major')">전공동아리</button>
+        </div>
+        <div class="list-header">
+            <span id="current-tab-label" class="list-label">일반동아리 목록</span>
+            <button class="mini-refresh-btn" onclick="renderClubs()">새로고침</button>
+        </div>
+        <div id="loading-overlay">처리 중... 잠시만 기다려주세요.</div>
+        <div id="club-list">데이터 로딩 중...</div>
+        <button onclick="location.reload()" style="background:#666; width:100%; padding:14px; color:white; margin-top:20px; font-size:1rem;">로그아웃</button>
+    </div>
+
+    <script>
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby3GLthAjbFNqrM5PNhhsShRm8_e4FrIiK8QqNdaMGVz7Q8CZRxiSvIeEmzsroNMUxi/exec"; 
+
+        const CONFIG = {
+            startTime: new Date("2026-03-16T00:00:00+09:00"), 
+            endTime: new Date("2026-03-16T16:30:00+09:00"),
+            targetGrade: "1"
+        };
+
+        const clubs = [
+            { name: "가치 잇는 공방", limit: 5, type: 'general', teacher: "민규현", note: "" },
+            { name: "농구반", limit: 5, type: 'general', teacher: "이준", note: "" },
+            { name: "당구반", limit: 5, type: 'general', teacher: "김지검", note: "1회 5,000원" },
+            { name: "디바인그루브", limit: 0, type: 'general', teacher: "박지수", note: "" },
+            { name: "뜨개하는 과학자들", limit: 5, type: 'general', teacher: "구인숙", note: "" },
+            { name: "면접 터치반", limit: 5, type: 'general', teacher: "권해련", note: "" },
+            { name: "배드민턴 1반", limit: 5, type: 'general', teacher: "김용욱", note: "" },
+            { name: "밴드부", limit: 0, type: 'general', teacher: "주혜영", note: "" },
+            { name: "보드게임반", limit: 5, type: 'general', teacher: "노상균", note: "" },
+            { name: "수학 전략 탐구반", limit: 5, type: 'general', teacher: "박수영", note: "" },
+            { name: "숨은 작가 찾기", limit: 5, type: 'general', teacher: "오지현", note: "매시간 작품 창작 제출" },
+            { name: "아트스튜디오", limit: 5, type: 'general', teacher: "박지수", note: "" },
+            { name: "야구부", limit: 5, type: 'general', teacher: "박준우", note: "개인글러브 지참, 스크린야구 5,000원" },
+            { name: "언어의 힘", limit: 5, type: 'general', teacher: "이근형", note: "" },
+            { name: "역사탐구반", limit: 5, type: 'general', teacher: "정덕용", note: "" },
+            { name: "영어 스토리 동아리", limit: 5, type: 'general', teacher: "추송아", note: "" },
+            { name: "요리조리 연구소", limit: 5, type: 'general', teacher: "조지혜", note: "" },
+            { name: "중국문화탐구", limit: 5, type: 'general', teacher: "왕서방", note: "" },
+            { name: "캘리그라피", limit: 5, type: 'general', teacher: "박선희", note: "" },
+            { name: "피어리스", limit: 0, type: 'general', teacher: "최민경", note: "" },
+            { name: "핏 업", limit: 5, type: 'general', teacher: "정수미", note: "1회 4,000원" },
+            { name: "해병대부사관", limit: 5, type: 'general', teacher: "박영관", note: "" },
+            
+            { name: "수처리반", limit: 5, type: 'major', teacher: "변영욱", dept: "바이오제약과" },
+            { name: "생활의약품", limit: 5, type: 'major', teacher: "이정식", dept: "바이오제약과" },
+            { name: "전기코딩반", limit: 5, type: 'major', teacher: "이상권", dept: "바이오의료전기과" },
+            { name: "3D 모델링 설계", limit: 5, type: 'major', teacher: "전우찬", dept: "바이오의료전기과" },
+            { name: "DIY가구제작반", limit: 5, type: 'major', teacher: "유찬빈", dept: "바이오플랜트과" },
+            { name: "창호 메이커스", limit: 5, type: 'major', teacher: "김윤기", dept: "바이오플랜트과" },
+            { name: "발효창작공방", limit: 0, type: 'major', teacher: "이희우", dept: "바이오푸드과" },
+            { name: "조리과학", limit: 0, type: 'major', teacher: "백영신", dept: "바이오푸드과" },
+            { name: "코스메틱LAB", limit: 5, type: 'major', teacher: "양지혜", dept: "바이오코스메틱과" },
+            { name: "헤어기능반", limit: 0, type: 'major', teacher: "백서윤", dept: "바이오코스메틱과" },
+            { name: "피부기능반", limit: 0, type: 'major', teacher: "김은빛", dept: "바이오코스메틱과" }
+        ];
+
+        let currentTab = 'general';
+        let studentInfo = { id: '', name: '', dept: '' };
+        let isAdminMode = false;
+        let savedAdminPw = "";
+        let clickCount = 0;
+        let clickTimer;
+
+        function getDeptByClass(id) {
+            const classNum = parseInt(id.substring(1, 2));
+            if (classNum === 1 || classNum === 2) return "바이오제약과";
+            if (classNum === 3 || classNum === 4) return "바이오의료전기과";
+            if (classNum === 5) return "바이오플랜트과";
+            if (classNum === 6 || classNum === 7) return "바이오푸드과";
+            if (classNum === 8 || classNum === 9) return "바이오코스메틱과";
+            return "미확인";
+        }
+
+        function vId(el) {
+            el.value = el.value.replace(/[^0-9]/g, '');
+            if (el.value.length > 4) el.value = el.value.slice(0, 4);
+        }
+
+        function vName(el) {
+            el.value = el.value.replace(/[^ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/g, '');
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('tab-general').classList.toggle('active', tab === 'general');
+            document.getElementById('tab-major').classList.toggle('active', tab === 'major');
+            document.getElementById('current-tab-label').innerText = tab === 'general' ? '일반동아리 목록' : '전공동아리 목록';
+            renderClubs();
+        }
+
+        async function getKstTime() {
+            try {
+                const res = await fetch('https://worldtimeapi.org/api/timezone/Asia/Seoul');
+                const data = await res.json();
+                return new Date(data.datetime);
+            } catch (e) { return new Date(); }
+        }
+
+        async function devMode() {
+            clickCount++;
+            clearTimeout(clickTimer);
+            clickTimer = setTimeout(() => { clickCount = 0; }, 2000);
+            if (clickCount >= 3) {
+                clickCount = 0;
+                const pw = prompt("관리자 인증이 필요합니다.");
+                if (!pw) return;
+                document.getElementById('loading-overlay').style.display = 'block';
+                try {
+                    const res = await fetch(WEB_APP_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ action: "authAdmin", password: pw })
+                    });
+                    const result = await res.json();
+                    if (result.result === "success") {
+                        isAdminMode = true;
+                        savedAdminPw = pw;
+                        alert("🔐 관리자 모드 활성화");
+                        document.getElementById('login-btn').style.background = "#ffc107";
+                        document.getElementById('time-notice').innerText = "⭐ 관리자 권한 활성화 중";
+                    } else { alert(result.message); }
+                } catch (e) { alert("연결 오류"); }
+                finally { document.getElementById('loading-overlay').style.display = 'none'; }
+            }
+        }
+
+        async function updateTimeNotice() {
+            if (isAdminMode) return;
+            const notice = document.getElementById('time-notice');
+            const now = await getKstTime();
+            if (now < CONFIG.startTime) notice.innerText = `⚠️ 신청 대기: 3월 16일(월) 16:00 시작`;
+            else if (now > CONFIG.endTime) notice.innerText = `❌ 신청 종료`;
+            else notice.innerText = `✅ 현재 신청 가능 시간입니다.`;
+        }
+        setInterval(updateTimeNotice, 30000);
+        updateTimeNotice();
+
+        function showClubs() {
+            const idInput = document.getElementById('studentId').value.trim();
+            const nameInput = document.getElementById('studentName').value.replace(/\s/g, '');
+            if (idInput.length !== 4) { alert("학번 4자리를 정확히 입력해주세요."); return; }
+            
+            studentInfo.id = idInput;
+            studentInfo.name = nameInput;
+            studentInfo.dept = getDeptByClass(idInput);
+
+            if (studentInfo.dept === "미확인") {
+                alert("학번을 다시 확인해주세요. (반 정보 오류)");
+                return;
+            }
+
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('club-section').classList.remove('hidden');
+            renderClubs();
+        }
+
+        async function renderClubs() {
+            const listDiv = document.getElementById('club-list');
+            const statusBox = document.getElementById('my-status');
+            const loader = document.getElementById('loading-overlay');
+            loader.style.display = 'block';
+            try {
+                const res = await fetch(WEB_APP_URL);
+                const data = await res.json();
+                const counts = data.counts || {};
+                const myClub = data.records[studentInfo.id];
+                const myDetail = data.details ? data.details[studentInfo.id] : null; 
+                
+                statusBox.classList.remove('hidden');
+                
+                if (myClub) {
+                    // 비밀번호가 적혀 있는지 체크 (Apps Script에서 password 키로 보냄)
+                    const isStudentApplied = myDetail && myDetail.password && String(myDetail.password).trim() !== "";
+
+                    if (isStudentApplied) {
+                        statusBox.innerHTML = `
+                            <div>👋 <b>${studentInfo.name}(${studentInfo.id})</b>님,<br><b>[${myClub}]</b> 신청 완료</div>
+                            <button class="cancel-btn" onclick="cancelApply()">신청 취소하기</button>
+                        `;
+                    } else {
+                        statusBox.innerHTML = `
+                            <div>👋 <b>${studentInfo.name}(${studentInfo.id})</b>님<br><b>[${myClub}]</b>에 배정되었습니다.</div>
+                            <p style="font-size:0.85rem; color:#dc3545; margin-top:8px; font-weight:bold;">⚠️ 관리자 배정 건은 직접 취소가 불가합니다.</p>
+                        `;
+                    }
+                } else {
+                    statusBox.innerHTML = `<div>👋 <b>${studentInfo.name}(${studentInfo.id})</b>님, 환영합니다!</div>`;
+                }
+
+                listDiv.innerHTML = '';
+                const now = await getKstTime();
+                const filteredClubs = clubs.filter(c => c.type === currentTab);
+                
+                filteredClubs.forEach((club) => {
+                    const count = counts[club.name] || 0;
+                    const isFull = count >= club.limit;
+                    const isWrongDept = club.type === 'major' && club.dept !== studentInfo.dept;
+                    const isDisabled = (!isAdminMode && (now > CONFIG.endTime || isFull || myClub || isWrongDept));
+                    
+                    const item = document.createElement('div');
+                    item.className = 'club-item';
+                    item.innerHTML = `
+                        <div class="club-info">
+                            <span class="club-name">${club.name}</span>
+                            <div class="club-details">
+                                ${club.teacher ? `👤 ${club.teacher}` : ''} 
+                                ${club.type === 'general' && club.note 
+                                    ? `<span style="margin-left:8px; color:#d63384;">📢 ${club.note}</span>` 
+                                    : (club.dept ? `<span style="margin-left:8px; color:#004792; font-weight:bold;">📍 ${club.dept} 전용</span>` : '')
+                                }
+                            </div>
+                            <span class="club-count ${isFull ? 'full' : ''}">${count} / ${club.limit}명</span>
+                        </div>
+                        <button class="apply-btn" onclick="askPwAndSub(${JSON.stringify(club).replace(/"/g, '&quot;')})" ${isDisabled ? 'disabled' : ''}>
+                            ${isWrongDept ? '학과불일치' : (isFull ? '마감' : '신청')}
+                        </button>
+                    `;
+                    listDiv.appendChild(item);
+                });
+            } catch(e) { listDiv.innerHTML = '데이터 로딩 중 오류가 발생했습니다.'; }
+            finally { loader.style.display = 'none'; }
+        }
+
+	    async function askPwAndSub(club) {
+            const now = await getKstTime();
+            
+            if (!isAdminMode) {
+                if (now < CONFIG.startTime) {
+                    alert("아직 신청 기간이 아닙니다.\n신청 시작 시간: 3월 16일(월) 16:00");
+                    return;
+                }
+                if (now > CONFIG.endTime) {
+                    alert("신청 기간이 이미 종료되었습니다.");
+                    return;
+                }
+            }
+
+            if (!isAdminMode && club.type === 'major' && club.dept !== studentInfo.dept) {
+                alert(`해당 동아리는 ${club.dept} 학생만 신청 가능합니다.`);
+                return;
+            }
+
+            let message = `[${club.name}] 동아리에 신청하시겠습니까?`;
+            if (club.type === 'major') {
+                message += `\n\n📢 본인 전공(${studentInfo.dept}) 동아리가 맞는지 최종 확인 바랍니다.`;
+            }
+            if (!confirm(message)) return;
+
+            let pw = "";
+            if (!isAdminMode) {
+                pw = prompt(`신청 비밀번호(숫자 4자)를 설정하세요.\n(신청 취소 시 본인 확인을 위해 필요합니다)`);
+                if (pw === null) return; 
+                pw = pw.trim();
+                if (pw === "" || !/^[0-9]{4}$/.test(pw)) {
+                    alert("비밀번호는 숫자 4자리로 입력해야 신청이 완료됩니다.");
+                    return;
+                }
+            }
+
+            await sendData({ 
+                studentId: studentInfo.id, 
+                name: studentInfo.name, 
+                password: pw, 
+                clubName: club.name, 
+                clubLimit: club.limit, 
+                isAdmin: isAdminMode, 
+                adminPw: savedAdminPw 
+            });
+        }
+
+        async function cancelApply() {
+            const pw = prompt("신청 시 설정했던 비밀번호 4자를 입력하세요.");
+            if (!pw) return;
+            if(confirm("정말로 신청을 취소하시겠습니까?")) {
+                await sendData({ action: "delete", studentId: studentInfo.id, password: pw });
+            }
+        }
+
+        async function sendData(payload) {
+            document.getElementById('loading-overlay').style.display = 'block';
+            try {
+                const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify(payload) });
+                const result = await res.json();
+                alert(result.message);
+                renderClubs();
+            } catch (e) { alert("연결 오류가 발생했습니다."); }
+            finally { document.getElementById('loading-overlay').style.display = 'none'; }
+        }
+    </script>
+</body>
+</html>
